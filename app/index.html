@@ -385,7 +385,7 @@ const MEDIA={
     if(!tok()){askToken();throw{code:'sintoken'}}
     const r=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_DIR}${encodeURIComponent(id)}`,{headers:hdr({Accept:'application/vnd.github.raw+json'})});
     if(!r.ok){if(r.status===401||r.status===403)askToken();throw{code:'http'+r.status}}
-    const b=await r.blob();cache[id]=b;return b;
+    const raw=await r.blob();const b=new Blob([raw],{type:'application/octet-stream'});cache[id]=b;return b;
   },
   async upload(file){
     if(!tok()){askToken();throw{code:'sintoken'}}
@@ -402,7 +402,7 @@ const DL={async save({filename,data}){const u=URL.createObjectURL(data);const a=
 window.DRHYDRATE=function(){
   document.querySelectorAll('[data-mid]').forEach(el=>{
     if(el.dataset.done)return;el.dataset.done='1';const id=el.dataset.mid;
-    MEDIA.blob(id).then(b=>{const t=el.tagName==='VIDEO'?'video/mp4':'image/png';const u=URL.createObjectURL(b.type&&b.type.indexOf('octet')<0?b:new Blob([b],{type:t}));el.src=u;const a=el.closest('.th')&&el.closest('.th').querySelector('[data-mida]');if(a)a.href=u}).catch(er=>{const th=el.closest('.th');if(th&&!th.querySelector('.merr')){const m=document.createElement('div');m.className='merr sm muted';m.textContent='No carga ('+((er&&er.code)||'error')+')';th.appendChild(m)}el.dataset.done='';setTimeout(()=>{try{window.DRHYDRATE()}catch(e){}},8000)});
+    MEDIA.blob(id).then(b=>{const t=el.tagName==='VIDEO'?'video/mp4':'image/png';const u=URL.createObjectURL(new Blob([b],{type:t}));el.src=u;const a=el.closest('.th')&&el.closest('.th').querySelector('[data-mida]');if(a)a.href=u}).catch(er=>{const th=el.closest('.th');if(th&&!th.querySelector('.merr')){const m=document.createElement('div');m.className='merr sm muted';m.textContent='No carga ('+((er&&er.code)||'error')+')';th.appendChild(m)}el.dataset.done='';setTimeout(()=>{try{window.DRHYDRATE()}catch(e){}},8000)});
   });
   if(!$('#ghbtn')){const a=$('#app');if(a){const d=document.createElement('div');d.id='ghbtn';d.className='sig';d.innerHTML='<button class="btn" id="ghset">'+(tok()?'Imágenes conectadas · cambiar':'Conectar imágenes')+'</button> <button class="btn" id="impbtn">Importar datos</button> <input type="file" id="impfile" accept="application/json" hidden> <button class="btn" id="outbtn">Salir</button>';a.appendChild(d)}}
 };
