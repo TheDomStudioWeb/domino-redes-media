@@ -267,26 +267,29 @@ function render(){
 }
 function readPieza(){var p=OPEN.p;['titulo','cuenta','formato','fecha','hora','texto','notas'].forEach(function(k){var e=document.getElementById('f-'+k);if(e)p[k]=e.value});var u=document.getElementById('f-url');if(u)p.url=u.value;var mo=document.getElementById('f-mot');if(mo)p.motivo=mo.value}
 var PUBST={};
-var PUB_CUENTAS=['c-dom-ig'];
+var PUB_CUENTAS=['c-dom-ig','c-dom-li-perfil'];
+function esLI(p){return p.cuenta==='c-dom-li-perfil'}
 function captionDe(p){var t=(p.texto||'').trim();var m=/Etiquetas:\s*([^\n]+)/i.exec(p.notas||'');if(m){var tags=m[1].replace(/[.\s]+$/,'').trim();if(tags&&t.indexOf(tags)<0)t+='\n\n'+tags}return t}
 function pubUI(p){
   if(!p||OPEN.nuevo||PUB_CUENTAS.indexOf(p.cuenta)<0)return '';
   var f=p.formato,im=p.imgs||[];
   if(f==='Historia')return '<p class="muted sm">Las historias se suben a mano: los stickers (preguntas, encuestas, enlaces) no se pueden agregar desde la conexión automática.</p>';
-  if(['Imagen','Carrusel','Reel'].indexOf(f)<0)return '';
+  if((esLI(p)?['Texto','Imagen']:['Imagen','Carrusel','Reel']).indexOf(f)<0)return '';
   var st=PUBST[p.id];
-  if(st&&st.run)return '<p class="alert w">Publicando en Instagram… '+esc(st.msg||'')+' No cierres esta pantalla.</p>';
+  if(st&&st.run)return '<p class="alert w">Publicando… '+esc(st.msg||'')+' No cierres esta pantalla.</p>';
   var h='';
   if(st&&st.err)h+='<p class="alert"><span class="t">'+esc(st.err)+'</span></p>';
-  var falta=!im.length?'Primero cargá las imágenes o el video.':(!p.estado||p.estado!=='aprobada'&&p.estado!=='fallida'?'La pieza tiene que estar aprobada.':'');
-  h+='<div class="row" style="margin-top:10px"><button class="btn pri" data-act="pubig"'+(falta?' disabled':'')+'>Publicar ahora en Instagram</button></div>'+(falta?'<p class="muted sm">'+esc(falta)+'</p>':'<p class="muted sm">Publica de inmediato en @thedomstudioweb con el texto y las etiquetas de la pieza. Tarda 1 o 2 minutos.</p>');
+  var falta=esLI(p)?(!(p.texto||'').trim()?'Falta el texto de la publicación.':''):!im.length?'Primero cargá las imágenes o el video.':'';
+  if(!falta&&(!p.estado||p.estado!=='aprobada'&&p.estado!=='fallida'))falta='La pieza tiene que estar aprobada.';
+  var _x=(!p.estado||p.estado!=='aprobada'&&p.estado!=='fallida'?'La pieza tiene que estar aprobada.':'');
+  h+='<div class="row" style="margin-top:10px"><button class="btn pri" data-act="pubig"'+(falta?' disabled':'')+'>Publicar ahora en '+(esLI(p)?'LinkedIn':'Instagram')+'</button></div>'+(falta?'<p class="muted sm">'+esc(falta)+'</p>':'<p class="muted sm">'+(esLI(p)?'Publica de inmediato en tu perfil de LinkedIn con el texto'+(im.length?' y la imagen':'')+' de la pieza. Tarda menos de un minuto.':'Publica de inmediato en @thedomstudioweb con el texto y las etiquetas de la pieza. Tarda 1 o 2 minutos.')+'</p>');
   return h;
 }
 async function pubIg(){
   readPieza();var p=JSON.parse(JSON.stringify(OPEN.p));
   if(!window.DRPUB){ERR='La publicación automática solo está disponible en la app propia.';render();return}
   var cap=captionDe(p);
-  if(!window.confirm('Se va a publicar ahora, de verdad, en Instagram (@thedomstudioweb):\n\n'+p.titulo+'\n\n¿Confirmás?'))return;
+  if(!window.confirm('Se va a publicar ahora, de verdad, en '+(esLI(p)?'tu perfil de LinkedIn':'Instagram (@thedomstudioweb)')+':\n\n'+p.titulo+'\n\n¿Confirmás?'))return;
   PUBST[p.id]={run:true,msg:'Enviando…'};render();
   try{
     await window.DRPUB(p,cap,function(m){PUBST[p.id]={run:true,msg:m};render()});
@@ -294,7 +297,7 @@ async function pubIg(){
     var d={estado:'publicada',publicadoTs:Date.now(),motivo:''};
     wr('piezas',p.id,d,true);ST.piezas.forEach(function(x){if(x.id===p.id)Object.assign(x,d)});
     if(OPEN&&OPEN.p&&OPEN.p.id===p.id)Object.assign(OPEN.p,d);
-    MSG='Publicada en Instagram: «'+p.titulo+'».';
+    MSG='Publicada en '+(esLI(p)?'LinkedIn':'Instagram')+': «'+p.titulo+'».';
   }catch(e){
     var code=(e&&e.code)||'error';
     var msg=code==='sintoken'?'Falta conectar el token de GitHub (botón «Conectar imágenes»).':code==='http403'||code==='http401'||code==='http404'?'GitHub no dejó iniciar la publicación ('+code+'). Revisá que el token tenga permiso Actions: lectura y escritura.':code==='fallo'?'Instagram o GitHub rechazaron la publicación. Mirá el detalle en GitHub → Actions (domino-redes). No se publicó nada en la app.':'No se pudo completar ('+code+'). Revisá GitHub → Actions antes de reintentar, por si se publicó.';
@@ -443,13 +446,15 @@ window.DRPUB=async function(p,caption,onst){
   const base=`https://api.github.com/repos/${GH_REPO}/actions`;
   const t0=Date.now()-90000;
   const media=(p.imgs||[]).map(i=>i.id+':'+((String(i.name||'').split('.').pop())||'png').toLowerCase()).join(',');
-  const r=await fetch(`${base}/workflows/publicar-pieza.yml/dispatches`,{method:'POST',headers:hdr({Accept:'application/vnd.github+json','Content-Type':'application/json'}),body:JSON.stringify({ref:'main',inputs:{pieza:p.id,formato:p.formato,media,caption}})});
+  const li=p.cuenta==='c-dom-li-perfil',wf=li?'publicar-linkedin.yml':'publicar-pieza.yml';
+  const inputs=li?{pieza:p.id,texto:caption,media}:{pieza:p.id,formato:p.formato,media,caption};
+  const r=await fetch(`${base}/workflows/${wf}/dispatches`,{method:'POST',headers:hdr({Accept:'application/vnd.github+json','Content-Type':'application/json'}),body:JSON.stringify({ref:'main',inputs})});
   if(r.status!==204)throw{code:'http'+r.status};
   onst('Iniciado, esperando a GitHub…');
   let run=null;
   for(let i=0;i<30&&!run;i++){
     await sleep(4000);
-    const l=await (await fetch(`${base}/workflows/publicar-pieza.yml/runs?event=workflow_dispatch&per_page=5`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github+json'})})).json();
+    const l=await (await fetch(`${base}/workflows/${wf}/runs?event=workflow_dispatch&per_page=5`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github+json'})})).json();
     run=(l.workflow_runs||[]).find(x=>Date.parse(x.created_at)>=t0)||null;
   }
   if(!run)throw{code:'sinrun'};
@@ -457,7 +462,7 @@ window.DRPUB=async function(p,caption,onst){
     let x=null;
     try{x=await (await fetch(`${base}/runs/${run.id}`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github+json'})})).json()}catch(e){x=null}
     if(x&&x.status){
-      onst(x.status==='in_progress'?'Subiendo a Instagram…':'En cola…');
+      onst(x.status==='in_progress'?'Publicando…':'En cola…');
       if(x.status==='completed'){if(x.conclusion==='success')return x;throw{code:'fallo',url:x.html_url}}
     }
     await sleep(4000);
