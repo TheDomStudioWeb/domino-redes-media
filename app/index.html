@@ -474,7 +474,7 @@ window.DRHYDRATE=function(){
     if(el.dataset.done)return;el.dataset.done='1';const id=el.dataset.mid;
     MEDIA.blob(id).then(b=>{const t=el.tagName==='VIDEO'?'video/mp4':'image/png';const u=URL.createObjectURL(new Blob([b],{type:t}));el.src=u;const a=el.closest('.th')&&el.closest('.th').querySelector('[data-mida]');if(a)a.href=u}).catch(er=>{const th=el.closest('.th');if(th&&!th.querySelector('.merr')){const m=document.createElement('div');m.className='merr sm muted';m.textContent='No carga ('+((er&&er.code)||'error')+')';th.appendChild(m)}const n=(+el.dataset.tries||0)+1;el.dataset.tries=n;if(n<3){el.dataset.done='';setTimeout(()=>{try{window.DRHYDRATE()}catch(e){}},8000)}});
   });
-  if(!$('#ghbtn')){const a=$('#app');if(a){const d=document.createElement('div');d.id='ghbtn';d.className='sig';d.innerHTML='<button class="btn" id="ghset">'+(tok()?'Imágenes conectadas · cambiar':'Conectar imágenes')+'</button> <button class="btn" id="impbtn">Importar datos</button> <input type="file" id="impfile" accept="application/json" hidden> <button class="btn" id="outbtn">Salir</button>';a.appendChild(d)}}
+  if(!$('#ghbtn')){const a=$('#app');if(a){const d=document.createElement('div');d.id='ghbtn';d.className='sig';d.innerHTML='<button class="btn" id="ghset">'+(tok()?'Imágenes conectadas · cambiar':'Conectar imágenes')+'</button> <button class="btn" id="novbtn">Traer novedades</button> <button class="btn" id="impbtn">Importar datos</button> <input type="file" id="impfile" accept="application/json" hidden> <button class="btn" id="outbtn">Salir</button>';a.appendChild(d)}}
 };
 function askToken(){
   if($('#ghask'))return;
@@ -489,6 +489,14 @@ document.addEventListener('click',e=>{
   if(e.target.id==='ghset')askToken();
   if(e.target.id==='outbtn')signOut(auth);
   if(e.target.id==='impbtn')$('#impfile').click();
+  if(e.target.id==='novbtn'){(async()=>{try{
+    if(!tok()){askToken();return}
+    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/novedades/importar.json`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github.raw+json'})});
+    if(!r.ok)throw{code:'github '+r.status};
+    const j=JSON.parse(await r.text());let n=0;
+    for(const col of Object.keys(j))for(const id of Object.keys(j[col])){await DB.doc(col+'/'+id).set(j[col][id]);n++}
+    alert('Novedades cargadas: '+n+' pieza(s). Revisalas en Piezas.');
+  }catch(err){alert('No se pudieron traer las novedades: '+(err.code||err.message||'error'))}})()}
 });
 document.addEventListener('change',async e=>{
   if(e.target.id!=='impfile'||!e.target.files[0])return;
