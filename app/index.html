@@ -60,6 +60,7 @@ var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 var MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 var ESTADOS={borrador:['Borrador',''],validar:['A validar','gold'],aprobar:['Por aprobar','gold'],aprobada:['Aprobada','pr'],publicada:['Publicada','ok'],fallida:['No se pudo subir','bad']};
 var CLI='todos';try{CLI=localStorage.getItem('dr_cli')||'todos'}catch(e){}
+var COM={d:null,busy:false,msg:'',f:'pend',r:'todas'},COMD={};
 var NOVN=0,NOVT=0;window.DRHAS=function(col,id){return (ST[col]||[]).some(function(x){return x.id===id})};window.DRNOVDONE=function(){NOVN=0;NOVT=Date.now();render()};
 var FR='todas',AR='activas',PW=null,FQ='';try{FR=localStorage.getItem('dr_fr')||'todas';AR=localStorage.getItem('dr_ar')||'activas';FIL=localStorage.getItem('dr_fil')||'todas'}catch(e){}
 function redDe2(id){var c=cuenta(id);return c&&c.red?String(c.red).split(' ')[0]:''}
@@ -196,6 +197,31 @@ function vPiezas(){
   });
   return h;
 }
+function comPend(){return COM.d?COM.d.items.filter(function(x){return !x.respondido}).length:0}
+function vComentarios(){
+  var h='<div class="row"><h2>Comentarios</h2><span class="sp"></span><button class="btn" data-act="comload">Recargar</button><button class="btn pri" data-act="comrefresh">Actualizar desde las redes</button></div>';
+  if(COM.msg)h+='<div class="muted sm" style="margin:8px 0" role="status">'+esc(COM.msg)+'</div>';
+  if(!COM.d){
+    if(!COM.busy&&window.DRCOM){COM.busy=true;window.DRCOM.load().then(function(d){COM.d=d;COM.busy=false;render()}).catch(function(e){COM.busy=false;COM.d={items:[],errores:['No se pudieron leer los comentarios: '+((e&&(e.code||e.message))||'error')],actualizado:''};render()})}
+    return h+'<div class="empty">Cargando comentarios…</div>';
+  }
+  var d=COM.d,pend=comPend();
+  h+='<p class="muted sm">'+(d.actualizado?'Última lectura: '+esc(new Date(d.actualizado).toLocaleString('es-AR'))+'. Se actualiza sola cada media hora.':'Todavía no hay una lectura.')+'</p>';
+  (d.errores||[]).forEach(function(e){h+='<div class="alert w" style="margin:6px 0"><span class="t">'+esc(e)+'</span></div>'});
+  h+='<div class="row" style="margin:8px 0" role="group" aria-label="Estado"><span class="cap">Mostrar</span>'+[['pend','Sin responder ('+pend+')'],['resp','Respondidos'],['todos','Todos']].map(function(x){return '<button class="tab" data-act="comf" data-k="'+x[0]+'" aria-current="'+(COM.f===x[0])+'">'+x[1]+'</button>'}).join('')+'</div>';
+  h+='<div class="row" style="margin:6px 0" role="group" aria-label="Red"><span class="cap">Red</span>'+['todas','Facebook','Instagram'].map(function(r){return '<button class="tab" data-act="comr" data-k="'+r+'" aria-current="'+(COM.r===r)+'">'+(r==='todas'?'Todas':r)+'</button>'}).join('')+'</div>';
+  var l=d.items.filter(function(x){return (COM.f==='todos'||(COM.f==='pend')===!x.respondido)&&(COM.r==='todas'||x.red===COM.r)});
+  if(!l.length)h+='<div class="empty">'+(COM.f==='pend'?'No hay comentarios sin responder.':'No hay comentarios con este filtro.')+'</div>';
+  l.forEach(function(x){
+    h+='<div class="card" style="margin:10px 0;padding:14px"><div class="row" style="gap:8px"><span class="pill gold">'+esc(x.red)+'</span><b>'+esc(x.autor)+'</b><span class="sp"></span><span class="muted sm">'+esc(x.fecha?new Date(x.fecha).toLocaleString('es-AR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'')+'</span></div>'
+     +'<p style="margin:8px 0;white-space:pre-wrap">'+esc(x.texto)+'</p>'
+     +'<div class="muted sm">En: '+(x.url?'<a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.post||'publicación')+'</a>':esc(x.post||'publicación'))+'</div>';
+    if(x.respondido)h+='<div class="muted sm" style="margin-top:8px">Respondido'+(x.respuesta?': «'+esc(x.respuesta)+'»':'.')+'</div>';
+    else h+='<label class="cap" for="rp-'+esc(x.id)+'" style="margin-top:10px;display:block">Su respuesta</label><textarea id="rp-'+esc(x.id)+'" rows="3" style="width:100%">'+esc(COMD[x.id]||'')+'</textarea><div class="row" style="margin-top:8px"><button class="btn pri" data-act="comreply" data-id="'+esc(x.id)+'"'+(COM.busy?' disabled':'')+'>Responder</button></div>';
+    h+='</div>';
+  });
+  return h;
+}
 function vCuentas(){
   var h='<div class="row"><h2>Cuentas</h2><span class="sp"></span><button class="btn pri" data-act="ncuenta">+ Nueva cuenta</button></div><p class="muted">Cada cuenta es un cliente en una red. «Manual» significa que la pieza se sube a mano y hay que confirmarlo acá. «Automática» queda para cuando la conexión oficial de la red esté lista.</p><div class="grid">';
   if(!SC().length)h+='<div class="empty">Todavía no hay cuentas.</div>';
@@ -286,9 +312,9 @@ function render(){
   var a=document.activeElement,keep=a&&a.id?a.id:null,sel=null;
   try{if(keep&&a.selectionStart!=null)sel=[a.selectionStart,a.selectionEnd]}catch(e){}
   if(LOADED&&window.DRNOVCHECK&&Date.now()-NOVT>600000){NOVT=Date.now();window.DRNOVCHECK().then(function(n){if(n!==NOVN){NOVN=n;render()}}).catch(function(){})}
-  var v=VIEW==='tablero'?vTablero():VIEW==='piezas'?vPiezas():VIEW==='cuentas'?vCuentas():VIEW==='metricas'?vMetricas():vDatos();
+  var v=VIEW==='tablero'?vTablero():VIEW==='piezas'?vPiezas():VIEW==='cuentas'?vCuentas():VIEW==='comentarios'?vComentarios():VIEW==='metricas'?vMetricas():vDatos();
   if(!LOADED&&!ERR)v='<div class="empty">Cargando…</div>';
-  var tabs=[['tablero','Tablero'],['piezas','Piezas'],['cuentas','Cuentas'],['metricas','Métricas'],['datos','Datos validados']];
+  var tabs=[['tablero','Tablero'],['piezas','Piezas'],['comentarios','Comentarios'+(COM.d&&comPend()?' ('+comPend()+')':'')],['cuentas','Cuentas'],['metricas','Métricas'],['datos','Datos validados']];
   $('#app').innerHTML='<header><img src="'+LOGO+'" alt="The DOM Studio Web"><div><div class="cap">The DOM Studio Web · DOMino</div><h1>Redes'+(CLI==='todos'?'':' · '+esc(CLI))+'</h1></div></header>'
    +'<nav aria-label="Secciones">'+tabs.map(function(t){return '<button class="tab" data-act="vista" data-v="'+t[0]+'" aria-current="'+(VIEW===t[0])+'">'+t[1]+'</button>'}).join('')+'</nav>'
    +(OPEN?'':'<div class="row" role="group" aria-label="Cliente" style="margin:-4px 0 14px"><span class="cap">Cliente</span>'+['todos'].concat(clientes()).map(function(k){return '<button class="tab" data-act="cli" data-k="'+esc(k)+'" aria-current="'+(CLI===k)+'">'+esc(k==='todos'?'Todos':k)+'</button>'}).join('')+'</div>')
@@ -358,6 +384,11 @@ document.addEventListener('click',function(ev){
   if(act==='vista'){VIEW=t.getAttribute('data-v');OPEN=null}
   else if(act==='sem'){var d=+t.getAttribute('data-d');WEEK=d===0?0:WEEK+d}
   else if(act==='fil'){FIL=t.getAttribute('data-k');svF()}
+  else if(act==='comload'){COM.d=null;COM.busy=false;COM.msg=''}
+  else if(act==='comf'){COM.f=t.getAttribute('data-k')}
+  else if(act==='comr'){COM.r=t.getAttribute('data-k')}
+  else if(act==='comrefresh'){if(window.DRCOM){COM.msg='Pidiendo la lectura a las redes… tarda cerca de un minuto.';window.DRCOM.refresh().then(function(){COM.msg='Lectura lista.';COM.d=null;COM.busy=false;render()}).catch(function(e){COM.msg='No se pudo actualizar: '+((e&&(e.code||e.message))||'error');render()})}}
+  else if(act==='comreply'){var it=COM.d&&COM.d.items.filter(function(y){return y.id===id})[0],tx=(COMD[id]||'').trim();if(!it){}else if(!tx){COM.msg='Escriba la respuesta antes de enviarla.'}else if(window.confirm('Se va a responder ahora, de verdad, en '+it.red+' a '+it.autor+':\n\n'+tx+'\n\n¿Confirmás?')){COM.busy=true;COM.msg='Enviando la respuesta…';window.DRCOM.reply(it.red,id,tx).then(function(){it.respondido=true;it.respuesta=tx;delete COMD[id];COM.busy=false;COM.msg='Respuesta enviada a '+it.autor+'.';render()}).catch(function(e){COM.busy=false;COM.msg='No se pudo responder: '+((e&&(e.code||e.message))||'error');render()})}}
   else if(act==='top'){setTimeout(function(){try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}},30)}
   else if(act==='fr'){FR=t.getAttribute('data-k');svF()}
   else if(act==='arch'){AR=t.getAttribute('data-k');FIL='todas';svF()}
@@ -406,7 +437,7 @@ document.addEventListener('click',function(ev){
 });
 document.addEventListener('change',function(ev){var t=ev.target;if(t.id==='f-files'&&AS&&OPEN&&OPEN.p){upFiles(t.files);return}if(t.getAttribute&&t.getAttribute('data-act')==='vok'&&OPEN&&OPEN.p){readPieza();OPEN.p.validar[+t.getAttribute('data-i')].ok=t.checked;render()}});
 document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&OPEN){OPEN=null;render()}});
-document.addEventListener('input',function(ev){if(ev.target&&ev.target.id==='f-buscar'){FQ=ev.target.value;render()}});
+document.addEventListener('input',function(ev){if(ev.target&&/^rp-/.test(ev.target.id||'')){COMD[ev.target.id.slice(3)]=ev.target.value;return}if(ev.target&&ev.target.id==='f-buscar'){FQ=ev.target.value;render()}});
 async function upFiles(files){
   readPieza();var list=Array.prototype.slice.call(files||[]),ok=0;
   for(var i=0;i<list.length;i++){MSG='Subiendo '+(i+1)+' de '+list.length+'…';render();
@@ -527,6 +558,26 @@ async function novLeer(){
   return JSON.parse(await r.text());
 }
 window.DRNOVCHECK=async()=>{if(!tok())return 0;const j=await novLeer();let n=0;for(const col of Object.keys(j||{}))for(const id of Object.keys(j[col]))if(!(window.DRHAS&&window.DRHAS(col,id)))n++;return n};
+async function ghRun(wf,inputs,onst){
+  const base=`https://api.github.com/repos/${GH_REPO}/actions`;const t0=Date.now()-90000;
+  const r=await fetch(`${base}/workflows/${wf}/dispatches`,{method:'POST',headers:hdr({Accept:'application/vnd.github+json','Content-Type':'application/json'}),body:JSON.stringify({ref:'main',inputs:inputs||{}})});
+  if(r.status!==204)throw{code:'http'+r.status};
+  let run=null;
+  for(let i=0;i<30&&!run;i++){await sleep(4000);const l=await (await fetch(`${base}/workflows/${wf}/runs?event=workflow_dispatch&per_page=5`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github+json'})})).json();run=(l.workflow_runs||[]).find(x=>Date.parse(x.created_at)>=t0)||null}
+  if(!run)throw{code:'sinrun'};
+  for(let i=0;i<120;i++){let x=null;try{x=await (await fetch(`${base}/runs/${run.id}`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github+json'})})).json()}catch(e){x=null}
+    if(x&&x.status==='completed'){if(x.conclusion==='success')return x;throw{code:'fallo (ver GitHub Actions)'}}await sleep(4000)}
+  throw{code:'timeout'};
+}
+window.DRCOM={
+  async load(){if(!tok()){askToken();throw{code:'sin conexión con GitHub'}}
+    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/comentarios/comentarios.json`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github.raw+json'})});
+    if(r.status===404)return{items:[],errores:['Todavía no hay comentarios leídos. Tocá «Actualizar desde las redes».'],actualizado:''};
+    if(!r.ok)throw{code:'github '+r.status};
+    return JSON.parse(await r.text())},
+  refresh(){return ghRun('traer-comentarios.yml',{})},
+  reply(red,id,texto){return ghRun('responder-comentario.yml',{red:red,comentario:id,texto:texto})}
+};
 function askToken(){
   if($('#ghask'))return;
   const d=document.createElement('div');d.id='ghask';
