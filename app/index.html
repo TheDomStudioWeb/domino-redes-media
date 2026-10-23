@@ -60,6 +60,7 @@ var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 var MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 var ESTADOS={borrador:['Borrador',''],validar:['A validar','gold'],aprobar:['Por aprobar','gold'],aprobada:['Aprobada','pr'],publicada:['Publicada','ok'],fallida:['No se pudo subir','bad']};
 var CLI='todos';try{CLI=localStorage.getItem('dr_cli')||'todos'}catch(e){}
+var NOVN=0,NOVT=0;window.DRHAS=function(col,id){return (ST[col]||[]).some(function(x){return x.id===id})};window.DRNOVDONE=function(){NOVN=0;NOVT=Date.now();render()};
 var FR='todas',AR='activas',PW=null,FQ='';try{FR=localStorage.getItem('dr_fr')||'todas';AR=localStorage.getItem('dr_ar')||'activas';FIL=localStorage.getItem('dr_fil')||'todas'}catch(e){}
 function redDe2(id){var c=cuenta(id);return c&&c.red?String(c.red).split(' ')[0]:''}
 function svF(){try{localStorage.setItem('dr_fr',FR);localStorage.setItem('dr_ar',AR);localStorage.setItem('dr_fil',FIL)}catch(e){}}
@@ -168,7 +169,7 @@ function vPiezas(){
   function okQ(p){return !q||((p.titulo||'')+' '+(p.texto||'')+' '+(p.notas||'')).toLowerCase().indexOf(q)>=0}
   var sinEst=base.filter(function(p){return okR(p)&&okW(p)&&okQ(p)});
   var ps=sinEst.filter(function(p){return arch||FIL==='todas'||(FIL==='atrasada'?atrasada(p):p.estado===FIL)});
-  var h='<div class="row"><h2>Piezas</h2><span class="sp"></span><button class="btn pri" data-act="nueva">+ Nueva pieza</button></div>';
+  var h='<div class="row"><h2>Piezas</h2><span class="sp"></span><button class="btn novbtn">Traer novedades</button><button class="btn pri" data-act="nueva">+ Nueva pieza</button></div>';
   h+='<div class="row" style="margin:10px 0" role="group" aria-label="Activas o archivo"><button class="tab" data-act="arch" data-k="activas" aria-current="'+!arch+'">Activas ('+nAct+')</button><button class="tab" data-act="arch" data-k="archivo" aria-current="'+arch+'">Archivo ('+nArc+')</button></div>';
   h+='<div class="row" style="margin:6px 0"><input id="f-buscar" type="search" placeholder="Buscar por título o texto" aria-label="Buscar" value="'+esc(FQ)+'" style="flex:1;min-width:160px"></div>';
   h+='<div class="row" style="margin:6px 0" role="group" aria-label="Red social"><span class="cap">Red</span><button class="tab" data-act="fr" data-k="todas" aria-current="'+(FR==='todas')+'">Todas</button>'
@@ -284,6 +285,7 @@ function render(){
   if(LOADED&&CLI!=='todos'&&!clientes().some(function(k){return cliOk.call(null,k)}))CLI='todos';
   var a=document.activeElement,keep=a&&a.id?a.id:null,sel=null;
   try{if(keep&&a.selectionStart!=null)sel=[a.selectionStart,a.selectionEnd]}catch(e){}
+  if(LOADED&&window.DRNOVCHECK&&Date.now()-NOVT>600000){NOVT=Date.now();window.DRNOVCHECK().then(function(n){if(n!==NOVN){NOVN=n;render()}}).catch(function(){})}
   var v=VIEW==='tablero'?vTablero():VIEW==='piezas'?vPiezas():VIEW==='cuentas'?vCuentas():VIEW==='metricas'?vMetricas():vDatos();
   if(!LOADED&&!ERR)v='<div class="empty">Cargando…</div>';
   var tabs=[['tablero','Tablero'],['piezas','Piezas'],['cuentas','Cuentas'],['metricas','Métricas'],['datos','Datos validados']];
@@ -291,7 +293,9 @@ function render(){
    +'<nav aria-label="Secciones">'+tabs.map(function(t){return '<button class="tab" data-act="vista" data-v="'+t[0]+'" aria-current="'+(VIEW===t[0])+'">'+t[1]+'</button>'}).join('')+'</nav>'
    +(OPEN?'':'<div class="row" role="group" aria-label="Cliente" style="margin:-4px 0 14px"><span class="cap">Cliente</span>'+['todos'].concat(clientes()).map(function(k){return '<button class="tab" data-act="cli" data-k="'+esc(k)+'" aria-current="'+(CLI===k)+'">'+esc(k==='todos'?'Todos':k)+'</button>'}).join('')+'</div>')
    +(ERR?'<div class="alert" role="alert" style="margin-bottom:12px"><span class="t">'+esc(ERR)+'</span><button class="btn" data-act="errx">Cerrar</button></div>':'')
+   +(!OPEN&&NOVN>0?'<div class="alert w" role="status" style="margin-bottom:12px"><span class="t">Hay '+NOVN+' pieza'+(NOVN>1?'s':'')+' nueva'+(NOVN>1?'s':'')+' para recuperar.</span><button class="btn pri novbtn">Traer novedades</button></div>':'')
    +(OPEN?vModal():v)
+   +(OPEN?'':'<div class="row" style="justify-content:center;margin:18px 0 0"><button class="btn" data-act="top">↑ Ir al encabezado</button></div>')
    +'<div class="sig">Desarrollado por The DOM Studio Web · WhatsApp 261-3431216 · thedomstudioweb@gmail.com</div>';
   if(OPEN&&!WASOPEN){try{window.scrollTo(0,0);var dt=document.getElementById('detalle');if(dt)dt.scrollIntoView({block:'start'})}catch(x){}}
   WASOPEN=!!OPEN;
@@ -354,6 +358,7 @@ document.addEventListener('click',function(ev){
   if(act==='vista'){VIEW=t.getAttribute('data-v');OPEN=null}
   else if(act==='sem'){var d=+t.getAttribute('data-d');WEEK=d===0?0:WEEK+d}
   else if(act==='fil'){FIL=t.getAttribute('data-k');svF()}
+  else if(act==='top'){setTimeout(function(){try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}},30)}
   else if(act==='fr'){FR=t.getAttribute('data-k');svF()}
   else if(act==='arch'){AR=t.getAttribute('data-k');FIL='todas';svF()}
   else if(act==='pw'){var dd=t.getAttribute('data-d');PW=dd==='all'?null:dd==='now'?0:(PW==null?0:PW)+(+dd)}
@@ -515,6 +520,13 @@ window.DRHYDRATE=function(){
   });
   if(!$('#ghbtn')){const a=$('#app');if(a){const d=document.createElement('div');d.id='ghbtn';d.className='sig';d.innerHTML='<button class="btn" id="ghset">'+(tok()?'Imágenes conectadas · cambiar':'Conectar imágenes')+'</button> <button class="btn" id="novbtn">Traer novedades</button> <button class="btn" id="impbtn">Importar datos</button> <input type="file" id="impfile" accept="application/json" hidden> <button class="btn" id="outbtn">Salir</button>';a.appendChild(d)}}
 };
+async function novLeer(){
+  if(!tok()){askToken();return null}
+  const r=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/novedades/importar.json`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github.raw+json'})});
+  if(!r.ok)throw{code:'github '+r.status};
+  return JSON.parse(await r.text());
+}
+window.DRNOVCHECK=async()=>{if(!tok())return 0;const j=await novLeer();let n=0;for(const col of Object.keys(j||{}))for(const id of Object.keys(j[col]))if(!(window.DRHAS&&window.DRHAS(col,id)))n++;return n};
 function askToken(){
   if($('#ghask'))return;
   const d=document.createElement('div');d.id='ghask';
@@ -528,13 +540,11 @@ document.addEventListener('click',e=>{
   if(e.target.id==='ghset')askToken();
   if(e.target.id==='outbtn')signOut(auth);
   if(e.target.id==='impbtn')$('#impfile').click();
-  if(e.target.id==='novbtn'){(async()=>{try{
-    if(!tok()){askToken();return}
-    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/novedades/importar.json`,{cache:'no-store',headers:hdr({Accept:'application/vnd.github.raw+json'})});
-    if(!r.ok)throw{code:'github '+r.status};
-    const j=JSON.parse(await r.text());let n=0;
-    for(const col of Object.keys(j))for(const id of Object.keys(j[col])){await DB.doc(col+'/'+id).set(j[col][id]);n++}
-    alert('Novedades cargadas: '+n+' pieza(s). Revisalas en Piezas.');
+  if(e.target.id==='novbtn'||(e.target.classList&&e.target.classList.contains('novbtn'))){(async()=>{try{
+    const j=await novLeer();if(!j)return;let n=0,ya=0;
+    for(const col of Object.keys(j))for(const id of Object.keys(j[col])){if(window.DRHAS&&window.DRHAS(col,id)){ya++;continue}await DB.doc(col+'/'+id).set(j[col][id]);n++}
+    window.DRNOVDONE&&window.DRNOVDONE();
+    alert(n?('Novedades cargadas: '+n+' pieza(s).'+(ya?' Ya estaban '+ya+' (no se tocaron).':'')+' Revisalas en Piezas.'):'No hay novedades nuevas'+(ya?': las '+ya+' ya estaban cargadas.':'.'));
   }catch(err){alert('No se pudieron traer las novedades: '+(err.code||err.message||'error'))}})()}
 });
 document.addEventListener('change',async e=>{
