@@ -322,7 +322,7 @@ function render(){
    +(!OPEN&&NOVN>0?'<div class="alert w" role="status" style="margin-bottom:12px"><span class="t">Hay '+NOVN+' pieza'+(NOVN>1?'s':'')+' nueva'+(NOVN>1?'s':'')+' para recuperar.</span><button class="btn pri novbtn">Traer novedades</button></div>':'')
    +(OPEN?vModal():v)
    +(OPEN?'':'<div class="row" style="justify-content:center;margin:18px 0 0"><button class="btn" data-act="top">↑ Ir al encabezado</button></div>')
-   +'<div class="sig">Desarrollado por The DOM Studio Web · WhatsApp 261-3431216 · thedomstudioweb@gmail.com<br><span class="muted sm">Versión 23/10 15:45 · con Comentarios</span></div>';
+   +'<div class="sig">Desarrollado por The DOM Studio Web · WhatsApp 261-3431216 · thedomstudioweb@gmail.com<br><span class="muted sm">Versión 23/10 19:30 · avisos de Facebook más claros</span></div>';
   if(OPEN&&!WASOPEN){try{window.scrollTo(0,0);var dt=document.getElementById('detalle');if(dt)dt.scrollIntoView({block:'start'})}catch(x){}}
   WASOPEN=!!OPEN;
   if(keep){var e=document.getElementById(keep);if(e){e.focus();try{if(sel)e.setSelectionRange(sel[0],sel[1])}catch(x){}}}
@@ -364,7 +364,7 @@ async function pubIg(){
     MSG='Publicada en '+redDe(p)+': «'+p.titulo+'».';
   }catch(e){
     var code=(e&&e.code)||'error';
-    var msg=code==='sintoken'?'Falta conectar el token de GitHub (botón «Conectar imágenes»).':code==='http403'||code==='http401'||code==='http404'?'GitHub no dejó iniciar la publicación ('+code+'). Revisá que el token tenga permiso Actions: lectura y escritura.':code==='fallo'?'Instagram o GitHub rechazaron la publicación. Mirá el detalle en GitHub → Actions (domino-redes). No se publicó nada en la app.':'No se pudo completar ('+code+'). Revisá GitHub → Actions antes de reintentar, por si se publicó.';
+    var msg=code==='sintoken'?'Falta conectar el token de GitHub (botón «Conectar imágenes»).':code==='http403'||code==='http401'||code==='http404'?'GitHub no dejó iniciar la publicación ('+code+'). Revisá que el token tenga permiso Actions: lectura y escritura.':code==='fallo'?(esFB(p)?'Facebook rechazó la publicación (lo más común: el token de la página venció; si en GitHub dice «Session has expired», hay que renovar FB_PAGE_TOKEN). Detalle en GitHub → Actions (domino-redes). No se publicó nada en la app.':'Instagram o GitHub rechazaron la publicación. Mirá el detalle en GitHub → Actions (domino-redes). No se publicó nada en la app.'):'No se pudo completar ('+code+'). Revisá GitHub → Actions antes de reintentar, por si se publicó.';
     PUBST[p.id]={err:msg};
   }
   render();
