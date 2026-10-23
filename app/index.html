@@ -60,6 +60,9 @@ var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 var MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 var ESTADOS={borrador:['Borrador',''],validar:['A validar','gold'],aprobar:['Por aprobar','gold'],aprobada:['Aprobada','pr'],publicada:['Publicada','ok'],fallida:['No se pudo subir','bad']};
 var CLI='todos';try{CLI=localStorage.getItem('dr_cli')||'todos'}catch(e){}
+var FR='todas',AR='activas',PW=null,FQ='';try{FR=localStorage.getItem('dr_fr')||'todas';AR=localStorage.getItem('dr_ar')||'activas';FIL=localStorage.getItem('dr_fil')||'todas'}catch(e){}
+function redDe2(id){var c=cuenta(id);return c&&c.red?String(c.red).split(' ')[0]:''}
+function svF(){try{localStorage.setItem('dr_fr',FR);localStorage.setItem('dr_ar',AR);localStorage.setItem('dr_fil',FIL)}catch(e){}}
 function clientes(){var o=[];ST.cuentas.forEach(function(c){if(c.cliente&&o.indexOf(c.cliente)<0)o.push(c.cliente)});return o}
 function cliOk(n){return CLI==='todos'||String(n||'').trim().toLowerCase()===CLI.trim().toLowerCase()}
 function SP(){return ST.piezas.filter(function(p){var c=cuenta(p.cuenta);return CLI==='todos'||(c&&cliOk(c.cliente))})}
@@ -154,13 +157,42 @@ function pieceRow(p){
    +(pend(p)?'<span class="pill gold">'+pend(p)+' dato(s) por validar</span>':'')+pill(p)+'</button>';
 }
 function vPiezas(){
-  var f=[['todas','Todas']].concat(Object.keys(ESTADOS).map(function(k){return[k,ESTADOS[k][0]]}));
-  var h='<div class="row"><h2>Piezas</h2><span class="sp"></span><button class="btn pri" data-act="nueva">+ Nueva pieza</button></div><div class="row" style="margin:10px 0">';
-  f.forEach(function(x){h+='<button class="tab" data-act="fil" data-k="'+x[0]+'" aria-current="'+(FIL===x[0])+'">'+esc(x[1])+'</button>'});
-  h+='</div>';
-  var ps=SP().filter(function(p){return FIL==='todas'||p.estado===FIL}).sort(function(a,b){return (a.fecha+a.hora).localeCompare(b.fecha+b.hora)});
-  if(!ps.length)h+='<div class="empty">No hay piezas con este filtro.</div>';
-  ps.forEach(function(p){h+='<div class="muted sm" style="margin:6px 0 2px">'+esc(fmt(p.fecha))+'</div>'+pieceRow(p)});
+  var arch=AR==='archivo';
+  var base=SP().filter(function(p){return arch?p.estado==='publicada':p.estado!=='publicada'});
+  var nAct=SP().filter(function(p){return p.estado!=='publicada'}).length,nArc=SP().length-nAct;
+  var redes=[];SP().forEach(function(p){var r=redDe2(p.cuenta);if(r&&redes.indexOf(r)<0)redes.push(r)});
+  var l0=PW==null?null:addDays(lunes(new Date()),PW*7),l1=l0?addDays(l0,6):null;
+  var q=FQ.trim().toLowerCase();
+  function okR(p){return FR==='todas'||redDe2(p.cuenta)===FR}
+  function okW(p){return !l0||(p.fecha>=iso(l0)&&p.fecha<=iso(l1))}
+  function okQ(p){return !q||((p.titulo||'')+' '+(p.texto||'')+' '+(p.notas||'')).toLowerCase().indexOf(q)>=0}
+  var sinEst=base.filter(function(p){return okR(p)&&okW(p)&&okQ(p)});
+  var ps=sinEst.filter(function(p){return arch||FIL==='todas'||(FIL==='atrasada'?atrasada(p):p.estado===FIL)});
+  var h='<div class="row"><h2>Piezas</h2><span class="sp"></span><button class="btn pri" data-act="nueva">+ Nueva pieza</button></div>';
+  h+='<div class="row" style="margin:10px 0" role="group" aria-label="Activas o archivo"><button class="tab" data-act="arch" data-k="activas" aria-current="'+!arch+'">Activas ('+nAct+')</button><button class="tab" data-act="arch" data-k="archivo" aria-current="'+arch+'">Archivo ('+nArc+')</button></div>';
+  h+='<div class="row" style="margin:6px 0"><input id="f-buscar" type="search" placeholder="Buscar por título o texto" aria-label="Buscar" value="'+esc(FQ)+'" style="flex:1;min-width:160px"></div>';
+  h+='<div class="row" style="margin:6px 0" role="group" aria-label="Red social"><span class="cap">Red</span><button class="tab" data-act="fr" data-k="todas" aria-current="'+(FR==='todas')+'">Todas</button>'
+    +redes.map(function(r){var n=base.filter(function(p){return redDe2(p.cuenta)===r}).length;return '<button class="tab" data-act="fr" data-k="'+esc(r)+'" aria-current="'+(FR===r)+'">'+esc(r)+' ('+n+')</button>'}).join('')+'</div>';
+  h+='<div class="row" style="margin:6px 0" role="group" aria-label="Semana"><span class="cap">Semana</span><button class="tab" data-act="pw" data-d="all" aria-current="'+(PW==null)+'">Todas</button><button class="tab" data-act="pw" data-d="now" aria-current="'+(PW===0)+'">Esta semana</button>'
+    +(PW!=null?'<button class="btn" data-act="pw" data-d="-1" aria-label="Semana anterior">←</button><span class="muted sm">'+l0.getDate()+' '+MES[l0.getMonth()]+' al '+l1.getDate()+' '+MES[l1.getMonth()]+'</span><button class="btn" data-act="pw" data-d="1" aria-label="Semana siguiente">→</button>':'<button class="btn" data-act="pw" data-d="1" aria-label="Elegir semana">Elegir semana →</button>')+'</div>';
+  if(!arch){
+    var fl=[['todas','Todas'],['atrasada','Atrasadas']].concat(Object.keys(ESTADOS).filter(function(k){return k!=='publicada'}).map(function(k){return[k,ESTADOS[k][0]]}));
+    h+='<div class="row" style="margin:6px 0 10px" role="group" aria-label="Estado"><span class="cap">Estado</span>'+fl.map(function(x){var n=x[0]==='todas'?sinEst.length:sinEst.filter(function(p){return x[0]==='atrasada'?atrasada(p):p.estado===x[0]}).length;return '<button class="tab" data-act="fil" data-k="'+x[0]+'" aria-current="'+(FIL===x[0])+'">'+esc(x[1])+' ('+n+')</button>'}).join('')+'</div>';
+  }
+  if(!ps.length){h+='<div class="empty">'+(arch?'Todavía no hay piezas publicadas con este filtro.':'No hay piezas con este filtro.')+'</div>';return h}
+  if(arch){
+    ps.sort(function(a,b){return (b.fecha+b.hora).localeCompare(a.fecha+a.hora)});
+    h+='<p class="muted sm">Se archivan solas al marcarse como publicadas. «Duplicar» crea un borrador nuevo a partir de una de ellas.</p>';
+  }else{
+    ps.sort(function(a,b){return (a.fecha+a.hora).localeCompare(b.fecha+b.hora)});
+    var at=ps.filter(atrasada);
+    if(at.length&&FIL!=='atrasada'){h+='<h3 style="margin:14px 0 4px;color:var(--bad,#c0392b)">Atrasadas ('+at.length+')</h3>';at.forEach(function(p){h+=pieceRow(p)});ps=ps.filter(function(p){return !atrasada(p)})}
+  }
+  var last='';
+  ps.forEach(function(p){
+    if(p.fecha!==last){last=p.fecha;h+='<div class="muted sm" style="margin:10px 0 2px">'+esc(fmt(p.fecha))+'</div>'}
+    h+=arch?'<div class="row" style="align-items:stretch;gap:6px;flex-wrap:nowrap"><div style="flex:1;min-width:0">'+pieceRow(p)+'</div><button class="btn" data-act="dup" data-id="'+esc(p.id)+'">Duplicar</button></div>':pieceRow(p);
+  });
   return h;
 }
 function vCuentas(){
@@ -321,7 +353,11 @@ document.addEventListener('click',function(ev){
   var id=t.getAttribute('data-id');
   if(act==='vista'){VIEW=t.getAttribute('data-v');OPEN=null}
   else if(act==='sem'){var d=+t.getAttribute('data-d');WEEK=d===0?0:WEEK+d}
-  else if(act==='fil'){FIL=t.getAttribute('data-k')}
+  else if(act==='fil'){FIL=t.getAttribute('data-k');svF()}
+  else if(act==='fr'){FR=t.getAttribute('data-k');svF()}
+  else if(act==='arch'){AR=t.getAttribute('data-k');FIL='todas';svF()}
+  else if(act==='pw'){var dd=t.getAttribute('data-d');PW=dd==='all'?null:dd==='now'?0:(PW==null?0:PW)+(+dd)}
+  else if(act==='dup'){var o=ST.piezas.filter(function(x){return x.id===id})[0];if(o){var c2=JSON.parse(JSON.stringify(o));c2.id=newId('p');c2.titulo=(o.titulo||'')+' (copia)';c2.estado='borrador';c2.fecha=hoyIso();c2.aprobadoTs=0;c2.publicadoTs=0;c2.motivo='';c2.validar=[];c2.t=Date.now();var dd2=JSON.parse(JSON.stringify(c2));delete dd2.id;wr('piezas',c2.id,dd2,false);ST.piezas.push(c2);AR='activas';svF();MSG='Copia creada como borrador: «'+c2.titulo+'».'}}
   else if(act==='cli'){CLI=t.getAttribute('data-k');try{localStorage.setItem('dr_cli',CLI)}catch(e){}MSG=''}
   else if(act==='errx'){ERR=''}
   else if(act==='cerrar'){OPEN=null}
@@ -365,6 +401,7 @@ document.addEventListener('click',function(ev){
 });
 document.addEventListener('change',function(ev){var t=ev.target;if(t.id==='f-files'&&AS&&OPEN&&OPEN.p){upFiles(t.files);return}if(t.getAttribute&&t.getAttribute('data-act')==='vok'&&OPEN&&OPEN.p){readPieza();OPEN.p.validar[+t.getAttribute('data-i')].ok=t.checked;render()}});
 document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&OPEN){OPEN=null;render()}});
+document.addEventListener('input',function(ev){if(ev.target&&ev.target.id==='f-buscar'){FQ=ev.target.value;render()}});
 async function upFiles(files){
   readPieza();var list=Array.prototype.slice.call(files||[]),ok=0;
   for(var i=0;i<list.length;i++){MSG='Subiendo '+(i+1)+' de '+list.length+'…';render();
