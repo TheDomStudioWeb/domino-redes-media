@@ -322,7 +322,7 @@ function render(){
    +(!OPEN&&NOVN>0?'<div class="alert w" role="status" style="margin-bottom:12px"><span class="t">Hay '+NOVN+' pieza'+(NOVN>1?'s':'')+' nueva'+(NOVN>1?'s':'')+' para recuperar.</span><button class="btn pri novbtn">Traer novedades</button></div>':'')
    +(OPEN?vModal():v)
    +(OPEN?'':'<div class="row" style="justify-content:center;margin:18px 0 0"><button class="btn" data-act="top">↑ Ir al encabezado</button></div>')
-   +'<div class="sig">Desarrollado por The DOM Studio Web · WhatsApp 261-3431216 · thedomstudioweb@gmail.com</div>';
+   +'<div class="sig">Desarrollado por The DOM Studio Web · WhatsApp 261-3431216 · thedomstudioweb@gmail.com<br><span class="muted sm">Versión 23/10 15:45 · con Comentarios</span></div>';
   if(OPEN&&!WASOPEN){try{window.scrollTo(0,0);var dt=document.getElementById('detalle');if(dt)dt.scrollIntoView({block:'start'})}catch(x){}}
   WASOPEN=!!OPEN;
   if(keep){var e=document.getElementById(keep);if(e){e.focus();try{if(sel)e.setSelectionRange(sel[0],sel[1])}catch(x){}}}
