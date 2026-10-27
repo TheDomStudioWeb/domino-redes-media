@@ -452,7 +452,7 @@ async function dlAll(){
     catch(e){MSG=(e&&e.code==='declined')?'Descarga cancelada.':'No se pudo descargar acá. Abrí cada imagen y guardala.';render();return}}
   MSG='Descarga lista.';render();
 }
-var MET=[['seguidores','Seguidores'],['guardados','Guardados'],['compartidos','Compartidos'],['comentarios','Comentarios'],['dms','Mensajes directos'],['visitas','Visitas al perfil'],['clics','Clics en el enlace']];
+var MET=[['vistas','Vistas'],['interacciones','Interacciones'],['seguidores','Seguidores'],['guardados','Guardados'],['compartidos','Compartidos'],['comentarios','Comentarios'],['dms','Mensajes directos'],['visitas','Visitas al perfil'],['clics','Clics en el enlace']];
 function vMetricas(){
   var h='<div class="row"><h2>Métricas semanales</h2><span class="sp"></span><button class="btn pri" data-act="nmet">+ Cargar semana</button></div><p class="muted">Cargá los números de cada lunes. Las flechas comparan con la semana anterior de la misma cuenta.</p>';
   if(!SM().length)return h+'<div class="empty">Todavía no hay semanas cargadas. La primera medición es el lunes 2/11.</div>';
@@ -461,7 +461,7 @@ function vMetricas(){
     var ms=by[cid].sort(function(a,b){return String(a.semana).localeCompare(String(b.semana))});
     h+='<h3 style="margin-top:18px">'+esc(cname(cid))+'</h3><div class="scroll"><table><tr><th>Semana del</th>'+MET.map(function(x){return '<th>'+x[1]+'</th>'}).join('')+'<th></th></tr>';
     ms.forEach(function(m,i){var pr=ms[i-1];h+='<tr><td>'+esc(fmt(m.semana))+'</td>'+MET.map(function(x){var v=m[x[0]],pv=pr?pr[x[0]]:null;var d='';if(pv!=null&&v!=null&&v!==pv){d=' <span class="'+(v>pv?'up':'dn')+'">'+(v>pv?'▲':'▼')+Math.abs(v-pv)+'</span>'}return '<td>'+(v==null?'—':esc(v))+d+'</td>'}).join('')+'<td><button class="btn" data-act="xmet" data-id="'+esc(m.id)+'" aria-label="Quitar semana">✕</button></td></tr>'});
-    h+='</table></div>'});
+    h+='</table></div>';var nt=ms.filter(function(m){return m.nota});if(nt.length)h+='<p class="muted sm">'+nt.map(function(m){return esc(fmt(m.semana))+': '+esc(m.nota)}).join(' · ')+'</p>'});
   return h;
 }
 function snap(col,key,sortf){DB.collection(col).onSnapshot(function(s){ST[key]=s.docs.map(function(d){var v=Object.assign({},d.data()||{});v.id=d.id;return v});if(sortf)ST[key].sort(sortf);LOADED=true;DIAG.snaps++;DIAG.last=new Date().toLocaleTimeString('es-AR');if(!(OPEN&&document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))){clearTimeout(RT);RT=setTimeout(render,250)}},function(e){ERR='No se pudieron leer los datos ('+((e&&e.code)||'error')+').';LOADED=true;render()})}
@@ -602,7 +602,9 @@ document.addEventListener('change',async e=>{
   if(e.target.id!=='impfile'||!e.target.files[0])return;
   try{
     const j=JSON.parse(await e.target.files[0].text());let n=0;
-    for(const col of Object.keys(j))for(const id of Object.keys(j[col])){await DB.doc(col+'/'+id).set(j[col][id]);n++}
+    for(const col of Object.keys(j))for(const id of Object.keys(j[col])){const v=j[col][id];
+      if(col==='metricas'&&!v.cuenta&&v.red){const cs=(window.ST&&window.ST.cuentas||[]).filter(c=>c.red===v.red&&(!v.cliente||c.cliente===v.cliente));if(cs.length!==1){alert('No encuentro una cuenta única de '+v.red+'. Se omite.');continue}v.cuenta=cs[0].id;delete v.red;delete v.cliente}
+      await DB.doc(col+'/'+id).set(v);n++}
     alert('Importación lista: '+n+' registros.');
   }catch(err){alert('No se pudo importar: '+(err.code||err.message||'error'))}
 });
