@@ -61,7 +61,7 @@ var MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'
 var ESTADOS={borrador:['Borrador',''],validar:['A validar','gold'],aprobar:['Por aprobar','gold'],aprobada:['Aprobada','pr'],publicada:['Publicada','ok'],fallida:['No se pudo subir','bad']};
 var CLI='todos';try{CLI=localStorage.getItem('dr_cli')||'todos'}catch(e){}
 var COM={d:null,busy:false,msg:'',f:'pend',r:'todas'},COMD={};
-var NOVN=0,NOVT=0;window.DRHAS=function(col,id){return (ST[col]||[]).some(function(x){return x.id===id})};window.DRNOVDONE=function(){NOVN=0;NOVT=Date.now();render()};
+var NOVN=0,NOVT=0;window.DRST=function(){return ST};window.DRHAS=function(col,id){return (ST[col]||[]).some(function(x){return x.id===id})};window.DRNOVDONE=function(){NOVN=0;NOVT=Date.now();render()};
 var FR='todas',AR='activas',PW=null,FQ='';try{FR=localStorage.getItem('dr_fr')||'todas';AR=localStorage.getItem('dr_ar')||'activas';FIL=localStorage.getItem('dr_fil')||'todas'}catch(e){}
 function redDe2(id){var c=cuenta(id);return c&&c.red?String(c.red).split(' ')[0]:''}
 function svF(){try{localStorage.setItem('dr_fr',FR);localStorage.setItem('dr_ar',AR);localStorage.setItem('dr_fil',FIL)}catch(e){}}
@@ -322,7 +322,7 @@ function render(){
    +(!OPEN&&NOVN>0?'<div class="alert w" role="status" style="margin-bottom:12px"><span class="t">Hay '+NOVN+' pieza'+(NOVN>1?'s':'')+' nueva'+(NOVN>1?'s':'')+' para recuperar.</span><button class="btn pri novbtn">Traer novedades</button></div>':'')
    +(OPEN?vModal():v)
    +(OPEN?'':'<div class="row" style="justify-content:center;margin:18px 0 0"><button class="btn" data-act="top">↑ Ir al encabezado</button></div>')
-   +'<div class="sig">Desarrollado por The DOM Studio Web · WhatsApp 261-3431216 · thedomstudioweb@gmail.com<br><span class="muted sm">Versión 30/10 · reprogramar por cliente · avisos de error con el motivo real</span></div>';
+   +'<div class="sig">Desarrollado por The DOM Studio Web · WhatsApp 261-3431216 · thedomstudioweb@gmail.com<br><span class="muted sm">Versión 30/10 b · reprogramar por cliente · avisos de error con el motivo real</span></div>';
   if(OPEN&&!WASOPEN){try{window.scrollTo(0,0);var dt=document.getElementById('detalle');if(dt)dt.scrollIntoView({block:'start'})}catch(x){}}
   WASOPEN=!!OPEN;
   if(keep){var e=document.getElementById(keep);if(e){e.focus();try{if(sel)e.setSelectionRange(sel[0],sel[1])}catch(x){}}}
@@ -558,8 +558,8 @@ window.DRHYDRATE=function(){
 /* Reprograma las piezas NO publicadas de un cliente: historias y publicaciones en cadenas separadas, en el orden actual, con N horarios por día desde una fecha. Repetirlo da el mismo resultado. */
 async function reprogramar(r){
   const cli=String(r.cliente||'').toLowerCase();
-  const ids=(window.ST.cuentas||[]).filter(c=>String(c.cliente||'').toLowerCase().indexOf(cli)>=0).map(c=>c.id);
-  const ps=(window.ST.piezas||[]).filter(p=>ids.indexOf(p.cuenta)>=0&&p.estado!=='publicada').sort((a,b)=>(a.fecha+(a.hora||'')+a.id).localeCompare(b.fecha+(b.hora||'')+b.id));
+  const ids=(window.DRST().cuentas||[]).filter(c=>String(c.cliente||'').toLowerCase().indexOf(cli)>=0).map(c=>c.id);
+  const ps=(window.DRST().piezas||[]).filter(p=>ids.indexOf(p.cuenta)>=0&&p.estado!=='publicada').sort((a,b)=>(a.fecha+(a.hora||'')+a.id).localeCompare(b.fecha+(b.hora||'')+b.id));
   if(!ps.length)return 'Reprogramar '+r.cliente+': no hay piezas sin publicar.';
   const hi=r.historias||[],pu=r.publicaciones||[];
   const H=ps.filter(p=>p.formato==='Historia'),P=ps.filter(p=>p.formato!=='Historia');
