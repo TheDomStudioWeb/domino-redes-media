@@ -632,7 +632,7 @@ document.addEventListener('click',e=>{
   if(e.target.id==='impbtn')$('#impfile').click();
   if(e.target.id==='novbtn'||(e.target.classList&&e.target.classList.contains('novbtn'))){(async()=>{try{
     const j=await novLeer();if(!j)return;let n=0,ya=0;
-    for(const col of Object.keys(j)){if(col==='reprogramar')continue;for(const id of Object.keys(j[col])){if(window.DRHAS&&window.DRHAS(col,id)){ya++;continue}await DB.doc(col+'/'+id).set(j[col][id]);n++}}
+    for(const col of Object.keys(j)){if(col==='reprogramar')continue;for(const id of Object.keys(j[col])){if(window.DRHAS&&window.DRHAS(col,id)){ya++;continue}const v=j[col][id];if(col==='metricas'&&!v.cuenta&&v.red){const norm=x=>String(x||'').trim().toLowerCase();const cs=((window.DRST&&window.DRST().cuentas)||[]).filter(c=>norm(c.red)===norm(v.red)&&(!v.cliente||norm(c.cliente)===norm(v.cliente)));if(cs.length!==1){alert('No encuentro una cuenta única de '+v.red+(v.cliente?' ('+v.cliente+')':'')+'. Se omite esa medición.');continue}v.cuenta=cs[0].id;delete v.red;delete v.cliente}await DB.doc(col+'/'+id).set(v);n++}}
     let rp='';for(const id of Object.keys(j.reprogramar||{})){rp+=await reprogramar(j.reprogramar[id])}
     window.DRNOVDONE&&window.DRNOVDONE();
     if(rp&&!n){alert(rp);return}
@@ -644,7 +644,7 @@ document.addEventListener('change',async e=>{
   try{
     const j=JSON.parse(await e.target.files[0].text());let n=0;
     for(const col of Object.keys(j))for(const id of Object.keys(j[col])){const v=j[col][id];
-      if(col==='metricas'&&!v.cuenta&&v.red){const cs=(window.ST&&window.ST.cuentas||[]).filter(c=>c.red===v.red&&(!v.cliente||c.cliente===v.cliente));if(cs.length!==1){alert('No encuentro una cuenta única de '+v.red+'. Se omite.');continue}v.cuenta=cs[0].id;delete v.red;delete v.cliente}
+      if(col==='metricas'&&!v.cuenta&&v.red){const cs=((window.DRST&&window.DRST().cuentas)||[]).filter(c=>c.red===v.red&&(!v.cliente||c.cliente===v.cliente));if(cs.length!==1){alert('No encuentro una cuenta única de '+v.red+'. Se omite.');continue}v.cuenta=cs[0].id;delete v.red;delete v.cliente}
       await DB.doc(col+'/'+id).set(v);n++}
     alert('Importación lista: '+n+' registros.');
   }catch(err){alert('No se pudo importar: '+(err.code||err.message||'error'))}
